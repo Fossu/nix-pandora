@@ -6,7 +6,8 @@ pub enum RenderMode {
     // single image
     Static, // will scale up/down to fill
     ScrollVertical,
-    // ScrollLateral, // not using this in niri agent presently; not enough IPC to cleanly animate on
+    ScrollLateral, // not using this in niri agent presently; not enough IPC to cleanly animate on
+    ScrollBoth,
     // most of the logic remains in comments; could be useful for other compositors with portrait monitors (?).
 }
 

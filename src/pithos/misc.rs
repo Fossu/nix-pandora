@@ -95,6 +95,84 @@ pub fn get_new_image_dimensions(
     )
 }
 
+fn get_scroll_both_scale_to_dimensions(
+    image_width: u32,
+    image_height: u32,
+    output_width: u32,
+    output_height: u32,
+) -> (Option<u32>, Option<u32>) {
+    (
+        Some(image_width.max(output_width)),
+        Some(image_height.max(output_height)),
+    )
+}
+
+pub fn get_effective_render_mode(
+    image_width: u32,
+    image_height: u32,
+    output_width: u32,
+    output_height: u32,
+    requested_mode: RenderMode,
+) -> RenderMode {
+    let image_aspect_ratio = image_width as f64 / image_height as f64;
+    let output_aspect_ratio = output_width as f64 / output_height as f64;
+
+    match requested_mode {
+        RenderMode::Static => RenderMode::Static,
+        RenderMode::ScrollVertical => {
+            if image_aspect_ratio >= output_aspect_ratio {
+                RenderMode::Static
+            } else {
+                RenderMode::ScrollVertical
+            }
+        }
+        RenderMode::ScrollHorizontal => {
+            if image_aspect_ratio <= output_aspect_ratio {
+                RenderMode::Static
+            } else {
+                RenderMode::ScrollHorizontal
+            }
+        }
+        RenderMode::ScrollBoth => {
+            let scale_to = get_scroll_both_scale_to_dimensions(
+                image_width,
+                image_height,
+                output_width,
+                output_height,
+            );
+            let (scaled_width, scaled_height) =
+                get_new_image_dimensions(image_width, image_height, scale_to.0, scale_to.1);
+
+            match (scaled_width > output_width, scaled_height > output_height) {
+                (true, true) => RenderMode::ScrollBoth,
+                (true, false) => RenderMode::ScrollHorizontal,
+                (false, true) => RenderMode::ScrollVertical,
+                (false, false) => RenderMode::Static,
+            }
+        }
+    }
+}
+
+pub fn get_scale_to_dimensions(
+    image_width: u32,
+    image_height: u32,
+    output_width: u32,
+    output_height: u32,
+    mode: RenderMode,
+) -> (Option<u32>, Option<u32>) {
+    match mode {
+        RenderMode::Static => (Some(output_width), Some(output_height)),
+        RenderMode::ScrollVertical => (Some(output_width), None),
+        RenderMode::ScrollHorizontal => (None, Some(output_height)),
+        RenderMode::ScrollBoth => get_scroll_both_scale_to_dimensions(
+            image_width,
+            image_height,
+            output_width,
+            output_height,
+        )
+    }
+}
+
 // this implicity enforces viewport "source rectangle" width/height as an inherent property of the
 // (canvas image, output mode, render mode) state combination.
 // i really really really need to have test coverage of this : )
