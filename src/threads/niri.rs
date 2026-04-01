@@ -78,9 +78,9 @@ fn index_scroll_percent(curr_idx: usize, max_idx: usize) -> f64 {
     if max_idx <= 1 {
         return 50.0;
     }
-    let mut scroll_ercent = 100.0 * (curr_idx.saturating_sub(1)) as f64 / (max_idx - 1) as f64;
+    let mut scroll_percent = 100.0 * (curr_idx.saturating_sub(1)) as f64 / (max_idx - 1) as f64;
     if scroll_percent.is_nan() {
-        scroll_ercent = 50.0;
+        scroll_percent = 50.0;
     }
     scroll_percent
 }
@@ -388,7 +388,7 @@ impl NiriProcessor {
     fn handle_window_opened_or_changed(&mut self, window: Window) -> Vec<u64> {
         let window_id = window.id;
         let prior_workspace_id = self
-            .window
+            .windows
             .get(&window_id)
             .and_then(|existing_window| existing_window.workspace_id);
         let is_focused = window.is_focused;
@@ -542,7 +542,7 @@ impl NiriProcessor {
                     self.emit_scroll_for_workspace_if_active(pandora.clone(), workspace_id);
                 }
             }
-            Event::WindowClose { id } => {
+            Event::WindowClosed { id } => {
                 if let Some(workspace_id) = self.handle_window_closed(id) {
                     self.emit_scroll_for_workspace_if_active(pandora.clone(), workspace_id);
                 }
@@ -552,7 +552,7 @@ impl NiriProcessor {
                     self.emit_scroll_for_workspace_if_active(pandora.clone(), workspace_id);
                 }
             }
-            Event::WindowLayoutsChanged { changed } => {
+            Event::WindowLayoutsChanged { changes } => {
                 for workspace_id in self.handle_window_layouts_changed(changes) {
                     self.emit_scroll_for_workspace_if_active(pandora.clone(), workspace_id);
                 }
