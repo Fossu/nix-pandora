@@ -216,6 +216,15 @@ pub fn get_viewport_dimensions(
             let viewport_height = (width_ratio * output_height as f64).round() as i32;
             (viewport_width, viewport_height)
         }
+        RenderMode::ScrollHorizontal => {
+            let viewport_width = (height_ratio * output_width as f64).round() as i32;
+            let viewport_height = image_height;
+            (viewport_width, viewport_height)
+        }
+        RenderMode::ScrollBoth => (
+            image_width.min(output_width),
+            image_height.min(output_height),
+        ),
     }
 }
 
