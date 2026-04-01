@@ -2,7 +2,9 @@ use crate::daemon::Daemon;
 use crate::pithos::anims::spring::Spring;
 use crate::pithos::commands::RenderMode;
 use crate::pithos::config::DaemonConfig;
-use crate::pithos::misc::get_viewport_dimensions;
+use crate::pithos::misc::{
+    get_effective_render_mode, get_scale_to_dimensions, get_viewport_dimensions,
+};
 
 use std::collections::HashMap;
 use std::fs::File;
@@ -492,7 +494,7 @@ impl WallpaperRenderState {
     pub fn scroll(
         &mut self,
         conn: &mut Connection<RenderThreadState>,
-        _scroll_x: f64,
+        scroll_x: f64,
         scroll_y: f64,
     ) {
         // scroll (x|y) track the % (0.0 => 100.0) of the center of the viewport along each dimension
@@ -503,6 +505,11 @@ impl WallpaperRenderState {
         match self.mode {
             RenderMode::Static => return,
             RenderMode::ScrollVertical => self.height.scroll(scroll_y, self.slowdown),
+            RenderMode::ScrollHorizontal => self.width.scroll(scroll_x, self.slowdown),
+            RenderMode::ScrollBoth => {
+                self.width.scroll(scroll_x, self.slowdown);
+                self.height.scroll(scroll_y, self.slowdown);
+            }
         };
 
         if !is_already_scrolling {
@@ -825,38 +832,26 @@ fn image_to_file(
 ) -> (i32, i32, RenderMode) {
     let (img_width_orig, img_height_orig) = pandora.clone().load_image(path).unwrap();
 
-    // Check aspect ratios for ScrollVertical mode fallback
-    let effective_mode = match mode {
-        RenderMode::ScrollVertical => {
-            // e.g. portrait 1:3 image, 1/3
-            let image_aspect_ratio = img_width_orig as f64 / img_height_orig as f64;
-            // e.g. landscape 21:9 monitor, 2.133...
-            // when rotated, is 9:21, or ~0.42
-            let output_aspect_ratio = width as f64 / height as f64;
+    let effective_mode =
+        get_effective_render_mode(img_width_orig, img_height_orig, width, height, *mode);
 
-            // a 1:3 image will always be sufficient for this, while a 1:2 image would be insufficient on rotate
-            if image_aspect_ratio > output_aspect_ratio {
-                // Image is wider than output - fall back to Static mode
-                pandora.clone().log(
-                    "wallpaper",
-                    format!(
-                        "Falling back to Static mode: image {}x{} (aspect {:.2}) is wider than output {}x{} (aspect {:.2})",
-                        img_width_orig, img_height_orig, image_aspect_ratio,
-                        width, height, output_aspect_ratio
-                    )
-                );
-                RenderMode::Static
-            } else {
-                RenderMode::ScrollVertical
-            }
-        }
-        RenderMode::Static => RenderMode::Static,
-    };
+    if effective_mode != *mode {
+        pandora.clone().log(
+            "wallpaper",
+            format!(
+                "Adjusting render mode from {:?} to {:?} for image {}x{} on output {}x{}",
+                mode, effective_mode, img_width_orig, img_height_orig, width, height
+            ),
+        );
+    }
 
-    let scale_to = match effective_mode {
-        RenderMode::Static => (Some(width), Some(height)),
-        RenderMode::ScrollVertical => (Some(width), None),
-    };
+    let scale_to = get_scale_to_dimensions(
+        img_width_orig,
+        img_height_orig,
+        width,
+        height,
+        effective_mode,
+    );
 
     let (img_width, img_height) = pandora.clone().read_img_to_file(path, f, scale_to).unwrap();
 
