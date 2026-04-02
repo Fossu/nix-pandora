@@ -1,22 +1,64 @@
 {
-  description = "A very basic flake";
+  description = ''
+    To develop run 'nix develop', 
+    then 'cargo run --' to run the Rust app
+
+    To build run 'nix build .#default', 
+    then 'nix shell .#default' 
+    and then whatever the name of the program is
+  '';
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-unstable";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
   };
 
-  outputs = { self, nixpkgs }: let
-    pkgs = nixpkgs.legacyPackages."aarch64-linux";
-  in {
-    devShells."aarch64-linux".default = pkgs.mkShell {
-      buildInputs = with pkgs; [
-        cargo
-	rustc
-	rustfmt
-	clippy
-	rust-analyzer
-      ];
-      env.RUST_SRC_PATH = "${pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
+  outputs = { self, nixpkgs }: 
+    let
+      supportedSystems = [ "x86_64-linux" "aarch64-linux" ];
+      forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
+    in 
+    {
+      devShells = forAllSystems (system:
+        let 
+          pkgs = nixpkgs.legacyPackages.${system};
+        in
+        {
+          default = pkgs.mkShell {
+	    name = "nix-rust";
+            buildInputs = with pkgs; [ cargo rustc rustfmt clippy rust-analyzer glib ];
+            nativeBuildInputs = with pkgs; [ pkg-config ];
+            env.RUST_SRC_PATH = "${pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
+            shellHook = ''
+              eval "$(starship init bash)"
+            '';
+          };
+	}
+      );
+
+      packages = forAllSystems (system:
+        let 
+          pkgs = nixpkgs.legacyPackages.${system};
+        in
+        {
+          default = pkgs.rustPlatform.buildRustPackage {
+            name = "name";
+	    version = "1.0.0";
+            src = ./.;
+
+            cargoLock = {
+              lockFile = ./Cargo.lock;
+            };
+
+            buildInputs = with pkgs; [ glib ];
+            nativeBuildInputs = with pkgs; [ pkg-config ];
+	    meta = with pkgs.lib; {
+	      description = "Package description";
+	      homepage = "https://...";
+	      license = licenses.gpl3;
+	      platforms = platforms.linux;
+	    };
+          };
+        }
+      );
     };
-  };
 }
