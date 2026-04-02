@@ -18,22 +18,22 @@
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
     in 
     {
-      devShells = forAllSystems (system:
-        let 
-          pkgs = nixpkgs.legacyPackages.${system};
-        in
-        {
-          default = pkgs.mkShell {
-	    name = "nix-rust";
-            buildInputs = with pkgs; [ cargo rustc rustfmt clippy rust-analyzer glib ];
-            nativeBuildInputs = with pkgs; [ pkg-config ];
-            env.RUST_SRC_PATH = "${pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
-            shellHook = ''
-              eval "$(starship init bash)"
-            '';
-          };
-	}
-      );
+      #devShells = forAllSystems (system:
+      #  let 
+      #    pkgs = nixpkgs.legacyPackages.${system};
+      #  in
+      #  {
+      #    default = pkgs.mkShell {
+      #      name = "nix-rust";
+      #      buildInputs = with pkgs; [ cargo rustc rustfmt clippy rust-analyzer glib ];
+      #      nativeBuildInputs = with pkgs; [ pkg-config ];
+      #      env.RUST_SRC_PATH = "${pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
+      #      shellHook = ''
+      #        eval "$(starship init bash)"
+      #      '';
+      #    };
+      #  }
+      #);
 
       packages = forAllSystems (system:
         let 
@@ -49,8 +49,12 @@
               lockFile = ./Cargo.lock;
             };
 
-            buildInputs = with pkgs; [ glib ];
-            nativeBuildInputs = with pkgs; [ pkg-config ];
+            buildInputs = with pkgs; [ 
+	      #glib
+	    ];
+            nativeBuildInputs = with pkgs; [ 
+	      pkg-config
+	    ];
 	    meta = with pkgs.lib; {
 	      description = "Package description";
 	      homepage = "https://...";
