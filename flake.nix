@@ -53,7 +53,7 @@
             #cargoLock = { lockFile = ./Cargo.lock; };
 
             buildInputs = with pkgs; [ 
-	      glib
+	      #glib
 	    ];
             nativeBuildInputs = with pkgs; [ 
 	      pkg-config
