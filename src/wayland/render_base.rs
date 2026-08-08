@@ -146,6 +146,7 @@ pub struct OutputState {
     pub name: String,
     pub width: i32,
     pub height: i32,
+    pub scale: i32,
     pub done: bool,
     pub transform: wl_output::Transform,
     pub render_state: OutputRenderStateVariety,
@@ -158,6 +159,7 @@ impl Default for OutputState {
             name: String::default(),
             width: 0,
             height: 0,
+            scale: 1,
             done: false,
             transform: wl_output::Transform::Normal,
             render_state: OutputRenderStateVariety::None,
@@ -167,6 +169,17 @@ impl Default for OutputState {
 }
 
 impl OutputState {
+    // wl_output reports width/height in physical pixels (the Mode event), but
+    // layer-shell surface size / wp_viewport destination are surface-local units,
+    // i.e. physical pixels divided by the output's integer scale factor.
+    pub fn logical_width(&self) -> i32 {
+        self.width / self.scale.max(1)
+    }
+
+    pub fn logical_height(&self) -> i32 {
+        self.height / self.scale.max(1)
+    }
+
     pub fn reseat(
         &mut self,
         conn: &mut Connection<RenderThreadState>,
@@ -435,7 +448,11 @@ impl WallpaperRenderState {
 
         surface.attach(conn, Some(buf), 0, 0);
         surface.damage(conn, 0, 0, width.output_dim, height.output_dim);
-        viewport.set_destination(conn, output_state.width, output_state.height);
+        viewport.set_destination(
+            conn,
+            output_state.logical_width(),
+            output_state.logical_height(),
+        );
 
         viewport.set_source(
             conn,
@@ -599,8 +616,11 @@ impl WallpaperRenderState {
         // Atomically swap to new buffer and update state
         verbose(pandora.clone(), "attaching new buffer");
         self.surface.attach(conn, Some(new_buffer), 0, 0);
-        self.viewport
-            .set_destination(conn, output_state.width, output_state.height);
+        self.viewport.set_destination(
+            conn,
+            output_state.logical_width(),
+            output_state.logical_height(),
+        );
         self.viewport.set_source(
             conn,
             viewport_x_start.into(),
@@ -774,6 +794,7 @@ pub fn initialize_wallpaper_outputs(
                 maybe_positions.copied(),
                 output_state.width,
                 output_state.height,
+                output_state.scale,
                 output_state.done,
             ));
         } else {
@@ -785,7 +806,7 @@ pub fn initialize_wallpaper_outputs(
     }
 
     // Now process each output, creating render states one by one
-    for (wl_output, output_name, image_path, mode, scroll_percents, width, height, done) in
+    for (wl_output, output_name, image_path, mode, scroll_percents, width, height, scale, done) in
         output_configs
     {
         // Create a temporary OutputState for the constructor
@@ -793,6 +814,7 @@ pub fn initialize_wallpaper_outputs(
             name: output_name.clone(),
             width,
             height,
+            scale,
             done,
             transform: wl_output::Transform::Normal,
             render_state: OutputRenderStateVariety::None,
@@ -951,7 +973,9 @@ fn wl_output_cb(ctx: EventCtx<RenderThreadState, WlOutput>) {
                 output_state.needs_reinit = true;
             }
         }
-        // wl_output::Event::Scale(scale) => output.scale = Some(scale), // maybe track this for lockscreen element scaling?
+        wl_output::Event::Scale(factor) => {
+            output_state.scale = factor;
+        }
         wl_output::Event::Done => {
             output_state.done = true;
             output.done = true;

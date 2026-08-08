@@ -59,8 +59,12 @@ impl Daemon for Pandora {
         wl_output: &WlOutput,
         output_state: &OutputState,
     ) {
-        let width = output_state.width;
-        let height = output_state.height;
+        // zwlr_layer_surface_v1::set_size takes surface-local (logical) units, but
+        // output_state.width/height come from wl_output's Mode event, which reports
+        // physical pixels. On scale-1 outputs these are identical, which is why this
+        // only shows up as a "zoomed in" wallpaper on HiDPI outputs.
+        let width = output_state.logical_width();
+        let height = output_state.logical_height();
         let layer_shell = conn.bind_singleton::<ZwlrLayerShellV1>(4..=5).unwrap();
         let layer_surface = layer_shell.get_layer_surface(
             conn,

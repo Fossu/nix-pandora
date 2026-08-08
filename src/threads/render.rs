@@ -233,6 +233,7 @@ impl WallpaperThread {
             name: output_state.name.clone(),
             width: output_state.width,
             height: output_state.height,
+            scale: output_state.scale,
             done: output_state.done,
             transform: output_state.transform,
             render_state: crate::wayland::render_base::OutputRenderStateVariety::None,
