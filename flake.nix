@@ -42,7 +42,12 @@
       packages = forAllSystems (system:
         let 
           pkgs = nixpkgs.legacyPackages.${system};
-	  naerskLib = pkgs.callPackage naersk {};
+	  # crates.io 403s any User-Agent containing "curl", which is exactly what
+	  # nixpkgs fetchurl sends. naersk fetches crates from crates.io/api, so
+	  # override the UA. Fixed-output hashes are unaffected.
+	  naerskLib = pkgs.callPackage naersk {
+	    fetchurl = args: pkgs.fetchurl (args // { curlOptsList = [ "--user-agent" "Nixpkgs" ]; });
+	  };
         in
         {
           default = naerskLib.buildPackage {
